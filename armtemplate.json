@@ -1,0 +1,134 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the function app that you wish to create."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    },
+    "apiPublisherEmail": {
+      "type": "string",
+      "metadata": {
+        "description": "The email to associate with the Api Management instance."
+      }
+    },
+    "apiPublisherName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the organization that owns the Api Management instance."
+      }
+    }
+  },
+  "variables": {
+    "functionAppName": "[parameters('appName')]",
+    "hostingPlanName": "[concat(parameters('appName'), '-asp')]",
+    "apiName": "[concat(parameters('appName'), '-api')]",
+    "storageAccountName": "[concat(uniquestring(resourceGroup().id), 'functions')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[variables('storageAccountName')]",
+      "apiVersion": "2018-02-01",
+      "location": "[parameters('location')]",
+      "kind": "Storage",
+      "sku": {
+        "name": "Standard_LRS"
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2016-09-01",
+      "name": "[variables('hostingPlanName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+      },
+      "sku": {
+        "name": "S1",
+        "tier": "Standard",
+        "size": "S1",
+        "family": "S",
+        "capacity": 1
+      }
+    },
+    {
+      "apiVersion": "2016-08-01",
+      "type": "Microsoft.Web/sites",
+      "name": "[variables('functionAppName')]",
+      "location": "[parameters('location')]",
+      "kind": "functionapp",
+      "properties": {
+        "name": "[variables('functionAppName')]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+        "hostingEnvironment": "",
+        "siteConfig": {
+          "alwaysOn": true
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "resources": [
+        {
+          "apiVersion": "2016-08-01",
+          "name": "appsettings",
+          "type": "config",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
+            "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+          ],
+          "properties": {
+            "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=',variables('storageAccountName'),';AccountKey=',listkeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2015-05-01-preview').key1,';')]",
+            "AzureWebJobsDashboard": "[concat('DefaultEndpointsProtocol=https;AccountName=',variables('storageAccountName'),';AccountKey=',listkeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2015-05-01-preview').key1,';')]",
+            "FUNCTIONS_EXTENSION_VERSION": "~2"
+          }
+        }
+      ]
+    },
+    {
+      "type": "Microsoft.ApiManagement/service",
+      "sku": {
+          "name": "Consumption",
+          "capacity": 0
+      },
+      "name": "[variables('apiName')]",
+      "apiVersion": "2018-06-01-preview",
+      "location": "North Central US",
+      "properties": {
+          "publisherEmail": "[parameters('apiPublisherEmail')]",
+          "publisherName": "[parameters('apiPublisherName')]",
+          "notificationSenderEmail": "apimgmt-noreply@mail.windowsazure.com",
+          "hostnameConfigurations": []
+      },
+      "resources": [
+        {
+          "type": "apis",
+          "name": "employees",
+          "apiVersion": "2018-06-01-preview",
+          "properties": {
+            "contentFormat": "swagger-json",
+            "contentValue": "{\r\n    \"swagger\": \"2.0\",\r\n    \"info\": {\r\n        \"title\": \"Employees\",\r\n        \"version\": \"1.0\"\r\n    },\r\n    \"host\": \"mjgkfc2.azure-api.net\",\r\n    \"basePath\": \"\/api\",\r\n    \"schemes\": [\"https\"],\r\n    \"securityDefinitions\": {\r\n        \"apiKeyHeader\": {\r\n            \"type\": \"apiKey\",\r\n            \"name\": \"Ocp-Apim-Subscription-Key\",\r\n            \"in\": \"header\"\r\n        },\r\n        \"apiKeyQuery\": {\r\n            \"type\": \"apiKey\",\r\n            \"name\": \"subscription-key\",\r\n            \"in\": \"query\"\r\n        }\r\n    },\r\n    \"security\": [{\r\n        \"apiKeyHeader\": []\r\n    }, {\r\n        \"apiKeyQuery\": []\r\n    }],\r\n    \"paths\": {\r\n        \"\/employee\": {\r\n            \"get\": {\r\n                \"description\": \"Retrieves a specific employee record\",\r\n                \"operationId\": \"getemployee\",\r\n                \"summary\": \"GetEmployee\",\r\n                \"parameters\": [{\r\n                    \"name\": \"storeId\",\r\n                    \"in\": \"query\",\r\n                    \"description\": \"The ID for the store in which the employee works\",\r\n                    \"required\": true,\r\n                    \"type\": \"string\"\r\n                }, {\r\n                    \"name\": \"employeeId\",\r\n                    \"in\": \"query\",\r\n                    \"description\": \"The unique ID of the employee\",\r\n                    \"required\": true,\r\n                    \"type\": \"string\"\r\n                }],\r\n                \"responses\": {}\r\n            },\r\n            \"put\": {\r\n                \"description\": \"Create a new employee record or update an existing record\",\r\n                \"operationId\": \"putemployee\",\r\n                \"summary\": \"PutEmployee\",\r\n                \"parameters\": [{\r\n                    \"name\": \"{   \\\"$id\\\": \\\"https:\/\/example.com\/person.schema.json\\\",   \\\"$schema\\\": \\\"http:\/\/json-schema.org\/draft-07\/schema#\\\",   \\\"title\\\": \\\"employee\\\",   \\\"type\\\": \\\"object\\\",   \\\"properties\\\": { \\t\\\"storeId\\\": { \\t  \\\"type\\\": \\\"string\\\", \\t  \\\"description\\\": \\\"The ID of the store in which the employee works.\\\" \\t}, \\t\\\"employeeId\\\": { \\t  \\\"type\\\": \\\"string\\\", \\t  \\\"description\\\": \\\"The unique ID of the employee.\\\" \\t}     \\\"firstName\\\": {       \\\"type\\\": \\\"string\\\",       \\\"description\\\": \\\"The employee's first name.\\\"     },     \\\"lastName\\\": {       \\\"type\\\": \\\"string\\\",       \\\"description\\\": \\\"The employee's last name.\\\"     },     \\\"SSN\\\": {       \\\"description\\\": \\\"The employee's social security name.\\\",       \\\"type\\\": \\\"string\\\"     }, \\t\\\"phone\\\": { \\t  \\\"description\\\": \\\"The employee's phone number.\\\" \\t  \\\"type\\\": \\\"string\\\" \\t}   } }\",\r\n                    \"in\": \"body\",\r\n                    \"schema\": {\r\n                        \"$ref\": \"#\/definitions\/{   \\\"$id\\\": \\\"https:\/\/example.com\/person.schema.json\\\",   \\\"$schema\\\": \\\"http:\/\/json-schema.org\/draft-07\/schema#\\\",   \\\"title\\\": \\\"employee\\\",   \\\"type\\\": \\\"object\\\",   \\\"properties\\\": { \\t\\\"storeId\\\": { \\t  \\\"type\\\": \\\"string\\\", \\t  \\\"description\\\": \\\"The ID of the store in which the employee works.\\\" \\t}, \\t\\\"employeeId\\\": { \\t  \\\"type\\\": \\\"string\\\", \\t  \\\"description\\\": \\\"The unique ID of the employee.\\\" \\t}     \\\"firstName\\\": {       \\\"type\\\": \\\"string\\\",       \\\"description\\\": \\\"The employee's first name.\\\"     },     \\\"lastName\\\": {       \\\"type\\\": \\\"string\\\",       \\\"description\\\": \\\"The employee's last name.\\\"     },     \\\"SSN\\\": {       \\\"description\\\": \\\"The employee's social security name.\\\",       \\\"type\\\": \\\"string\\\"     }, \\t\\\"phone\\\": { \\t  \\\"description\\\": \\\"The employee's phone number.\\\" \\t  \\\"type\\\": \\\"string\\\" \\t}   } }\"\r\n                    },\r\n                    \"description\": \"An employee object\"\r\n                }],\r\n                \"consumes\": [\"application\/json\"],\r\n                \"responses\": {}\r\n            }\r\n        }\r\n    },\r\n    \"definitions\": {\r\n        \"{   \\\"$id\\\": \\\"https:\/\/example.com\/person.schema.json\\\",   \\\"$schema\\\": \\\"http:\/\/json-schema.org\/draft-07\/schema#\\\",   \\\"title\\\": \\\"employee\\\",   \\\"type\\\": \\\"object\\\",   \\\"properties\\\": { \\t\\\"storeId\\\": { \\t  \\\"type\\\": \\\"string\\\", \\t  \\\"description\\\": \\\"The ID of the store in which the employee works.\\\" \\t}, \\t\\\"employeeId\\\": { \\t  \\\"type\\\": \\\"string\\\", \\t  \\\"description\\\": \\\"The unique ID of the employee.\\\" \\t}     \\\"firstName\\\": {       \\\"type\\\": \\\"string\\\",       \\\"description\\\": \\\"The employee's first name.\\\"     },     \\\"lastName\\\": {       \\\"type\\\": \\\"string\\\",       \\\"description\\\": \\\"The employee's last name.\\\"     },     \\\"SSN\\\": {       \\\"description\\\": \\\"The employee's social security name.\\\",       \\\"type\\\": \\\"string\\\"     }, \\t\\\"phone\\\": { \\t  \\\"description\\\": \\\"The employee's phone number.\\\" \\t  \\\"type\\\": \\\"string\\\" \\t}   } }\": {\r\n            \"example\": \"{\\n\\t\\\"storeId\\\": \\\"0\\\",\\n\\t\\\"employeeId\\\": \\\"0\\\",\\n\\t\\\"firstName\\\": \\\"john\\\",\\n\\t\\\"lastName\\\": \\\"doe\\\",\\n\\t\\\"SSN\\\": \\\"123-45-6789\\\",\\n\\t\\\"phone\\\": \\\"123-456-7890\\\"\\n}\"\r\n        }\r\n    },\r\n    \"tags\": []\r\n}",
+            "path": "employee",
+            "serviceUrl": "[concat('https://', reference(parameters('appName')).defaultHostName, '/api/employee')]",
+            "protocols": [
+              "HTTPS"
+            ]
+          },
+          "dependsOn": [
+            "[concat('Microsoft.ApiManagement/service/', variables('apiName'))]"
+          ]
+        }
+      ]
+    }
+  ]
+}

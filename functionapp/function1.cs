@@ -12,7 +12,7 @@
 
   public static class functions {
 
-    private static readonly string STORAGE_CONNECTION = Environment.GetEnvironmentVariable("StorageConnectionString");
+    private static readonly string STORAGE_CONNECTION = Environment.GetEnvironmentVariable("AzureWebJobsStorage");
     private const string EMPLOYEE_TABLE = "employees";
 
 
