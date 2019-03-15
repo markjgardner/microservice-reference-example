@@ -10,8 +10,8 @@ param(
 )
 
 write-output("Connecting to the target azure subscription...")
-Connect-AzureRmAccount
-Select-AzureRmSubscription -Subscription $subscriptionId
+Connect-AzAccount
+Select-AzSubscription -Subscription $subscriptionId
 
 $params = @{
     appName = "$appName"
@@ -20,8 +20,8 @@ $params = @{
     apiPublisherName = "Contoso Inc."
 }
 
-$rg = Get-AzureRmResourceGroup -Name $resourceGroupName
+$rg = Get-AzResourceGroup -Name $resourceGroupName
 
 write-output "Deploying resources..."
-New-AzureRmResourceGroupDeployment -Name "Employee Microservice Deployment" -ResourceGroupName $resourceGroupName -TemplateParameterObject $params -TemplateFile "armtemplate.json" -Mode Incremental
+New-AzResourceGroupDeployment -Name "Employee Microservice Deployment" -ResourceGroupName $resourceGroupName -TemplateParameterObject $params -TemplateFile "armtemplate.json" -Mode Incremental
 write-output "completed"
